@@ -38,6 +38,20 @@ export async function createWorkflow(email) {
   return body;
 }
 
+/**
+ * The score the exam has actually recorded.
+ *
+ * The exam's own endpoint needs no authentication but sends no CORS header, so
+ * a browser on this origin cannot read it. The service reads it server-side and
+ * passes it back — which means this shows what was really saved, not what this
+ * page thinks it filled in.
+ */
+export async function savedScore(email) {
+  const res = await fetch(`${baseUrlFor(email)}/score`);
+  if (!res.ok) throw new Error(`The service answered HTTP ${res.status}.`);
+  return res.json();
+}
+
 /** Has that workflow gone green yet? Reads the same badge the exam reads. */
 export async function workflowStatus(email) {
   const res = await fetch(`${baseUrlFor(email)}/workflow`);

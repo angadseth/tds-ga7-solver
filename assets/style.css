@@ -422,3 +422,25 @@ footer {
 .wf-manual { margin-top: 0.4rem; }
 .wf-manual summary { cursor: pointer; color: var(--ink-3); font-size: 0.8rem; }
 .wf-manual summary:hover { color: var(--ink); }
+
+/* ---------- the score the exam actually recorded ---------- */
+
+.live {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  padding: 0.9rem 1.1rem;
+  margin: 0 0 2rem;
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--accent);
+  background: var(--surface);
+}
+
+.live-label { color: var(--ink-3); font-size: 0.76rem; letter-spacing: 0.06em; text-transform: uppercase; }
+.live-value { font-size: 1.35rem; font-weight: 600; letter-spacing: -0.02em; }
+.live-value--full { color: var(--accent); }
+.live-value--part { color: var(--pending); }
+.live-value--none { color: var(--ink-3); font-size: 1rem; }
+.live-detail { color: var(--ink-2); font-size: 0.8rem; flex: 1 1 14rem; }
+.live .copy { margin-left: auto; }

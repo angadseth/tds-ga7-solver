@@ -8,6 +8,7 @@ import {
   checkWorkflow,
   createWorkflow,
   workflowStatus,
+  savedScore,
 } from "./service.js";
 
 const QUIZ = "2026-05-ga7";
@@ -86,6 +87,11 @@ async function run(email) {
   renderSummary(marks, ms);
   for (const q of CATALOGUE) ledger.append(renderRow(q, results[q.id], email));
 
+  document.getElementById("live")?.remove();
+  const live = await renderLiveScore(email);
+  live.id = "live";
+  summary.after(live);
+
   document.getElementById("verifier")?.remove();
   const verifier = await renderVerifier(email);
   verifier.id = "verifier";
@@ -95,6 +101,48 @@ async function run(email) {
 function setStatus(kind, text) {
   status.dataset.kind = kind;
   status.textContent = text;
+}
+
+async function renderLiveScore(email) {
+  const strip = el("div", "live");
+  const label = el("span", "live-label", "Score recorded by the exam");
+  const value = el("span", "live-value", "checking…");
+  const detail = el("span", "live-detail", "");
+  const again = el("button", "copy", "Refresh");
+  again.type = "button";
+
+  const load = async () => {
+    value.textContent = "checking…";
+    value.className = "live-value";
+    detail.textContent = "";
+    try {
+      const r = await savedScore(email);
+      if (r.error) throw new Error(r.error);
+      if (!r.saved) {
+        value.textContent = "nothing saved yet";
+        value.classList.add("live-value--none");
+        detail.textContent = "Fill the answers, then press Save on the exam page.";
+        return;
+      }
+      value.textContent = `${r.total} / ${r.max}`;
+      value.classList.add(r.total === r.max ? "live-value--full" : "live-value--part");
+      const when = new Date(r.time).toLocaleString();
+      const missing = CATALOGUE.filter((q) => (r.scores?.[q.id] ?? 0) < q.marks)
+        .map((q) => `Q${q.n}`);
+      detail.textContent = missing.length
+        ? `saved ${when} · still short on ${missing.join(", ")}`
+        : `saved ${when} · every question full`;
+    } catch (error) {
+      value.textContent = "could not read it";
+      value.classList.add("live-value--none");
+      detail.textContent = error.message;
+    }
+  };
+
+  again.addEventListener("click", load);
+  strip.append(label, value, detail, again);
+  load();
+  return strip;
 }
 
 function renderSummary(marks, ms) {
