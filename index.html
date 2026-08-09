@@ -30,21 +30,47 @@
       <h2>Save everything to the exam</h2>
       <p>
         This page cannot press Save for you — a website is only allowed to act on its own site,
-        which is what stops any page on the internet from touching your accounts. So the button
-        lives in a bookmark instead, and runs <em>on</em> the GA7 page.
+        which is what stops any page on the internet from touching your accounts. So the code runs
+        <em>on</em> the GA7 page instead. Two ways to get it there; the second needs no setup.
       </p>
     </div>
 
-    <ol class="action-steps">
-      <li>Copy the line below and make a new bookmark with it as the URL.</li>
-      <li>Open the GA7 page while signed in, and click that bookmark.</li>
-      <li>It fills every answer, saves, and shows your scored result.</li>
-    </ol>
+    <div class="ways">
+      <article class="way">
+        <h3><span class="way-n">A</span> As a bookmark <em>— set up once, one click after that</em></h3>
+        <ol>
+          <li>Press <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd> to open Chrome's bookmark manager.</li>
+          <li>Click the <strong>⋮</strong> menu at the top right → <strong>Add new bookmark</strong>.</li>
+          <li>Name it <strong>GA7</strong>, and paste the line below into the <strong>URL</strong> box. Save.</li>
+          <li>Open the GA7 exam page, then click <strong>GA7</strong> in your bookmarks bar.
+            (Press <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd> if you cannot see that bar.)</li>
+        </ol>
+        <div class="action-code">
+          <code id="bookmarklet-src">loading…</code>
+          <button class="go" id="copy-bookmarklet" type="button">Copy</button>
+        </div>
+      </article>
 
-    <div class="action-code">
-      <code id="bookmarklet-src">loading…</code>
-      <button class="go" id="copy-bookmarklet" type="button">Copy</button>
+      <article class="way">
+        <h3><span class="way-n">B</span> In the console <em>— nothing to set up, paste each time</em></h3>
+        <ol>
+          <li>Open the GA7 exam page and press <kbd>F12</kbd>.</li>
+          <li>Go to the <strong>Console</strong> tab.</li>
+          <li>Chrome blocks pasting there the first time — if it warns you, type
+            <code class="inline">allow pasting</code> and press Enter.</li>
+          <li>Paste the line below, press <kbd>Enter</kbd>, and close the panel with <kbd>F12</kbd>.</li>
+        </ol>
+        <div class="action-code">
+          <code id="console-src">loading…</code>
+          <button class="go" id="copy-console" type="button">Copy</button>
+        </div>
+      </article>
     </div>
+
+    <p class="action-after">
+      Either way, the same panel appears at the bottom right of the exam page: it fills every answer,
+      creates your workflow for question one, and saves — then shows the score the exam recorded.
+    </p>
   </section>
 
   <div id="summary"></div>
@@ -113,12 +139,20 @@
   const holder = document.getElementById("bookmarklet-src");
   holder.textContent = code;
 
-  const copy = document.getElementById("copy-bookmarklet");
-  copy.addEventListener("click", async () => {
-    await navigator.clipboard.writeText(code);
-    copy.textContent = "Copied";
-    setTimeout(() => (copy.textContent = "Copy"), 1500);
-  });
+  // The console wants the plain statement; a bookmark URL wants the javascript: form.
+  const consoleCode = `import('${loader}?'+Date.now())`;
+  document.getElementById("console-src").textContent = consoleCode;
+
+  const wire = (id, text) => {
+    const button = document.getElementById(id);
+    button.addEventListener("click", async () => {
+      await navigator.clipboard.writeText(text);
+      button.textContent = "Copied";
+      setTimeout(() => (button.textContent = "Copy"), 1500);
+    });
+  };
+  wire("copy-bookmarklet", code);
+  wire("copy-console", consoleCode);
 </script>
 </body>
 </html>
