@@ -383,3 +383,24 @@ footer {
   .probe { grid-template-columns: 3rem 1fr; }
   .probe-path { grid-column: 2; text-align: left; }
 }
+
+/* ---------- street view: the manual route, which needs no token ---------- */
+
+.sv ol.steps { margin: 0 0 0.4rem; padding-left: 1.3rem; display: flex; flex-direction: column; gap: 0.45rem; }
+.sv ol.steps li { font-size: 0.85rem; color: var(--ink-2); }
+.sv ol.steps strong { color: var(--ink); }
+
+.sv-prompt {
+  width: 100%;
+  max-height: 15rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  margin: 0.6rem 0 0.5rem;
+  font-size: 0.76rem;
+  color: var(--ink-2);
+}
+
+.sv-auto { width: 100%; margin-top: 0.9rem; border-top: 1px solid var(--rule); padding-top: 0.8rem; }
+.sv-auto summary { cursor: pointer; color: var(--ink-3); font-size: 0.8rem; margin-bottom: 0.6rem; }
+.sv-auto summary:hover { color: var(--ink); }
+.sv-auto > *:not(summary) { margin-bottom: 0.5rem; }

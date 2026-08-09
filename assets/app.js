@@ -306,12 +306,61 @@ function renderEvidence(q, result, email) {
  * aipipe.org, and never stored.
  * ---------------------------------------------------------------- */
 
+const GEMINI_PROMPT = `You are an OSINT geolocation analyst. Identify where this Street View photo was taken.
+
+Answer in exactly this format, on one line:
+Place, Country, Latitude, Longitude
+
+Rules that decide whether my answer scores:
+- "Place" must be the CITY or town, never the park, museum, street or landmark.
+  If you recognise the Hiroshima Peace Memorial Museum, the place is "Hiroshima".
+- "Country" must be the full English name: "United States", not "USA".
+- The coordinates must be the CAMERA's position - the exact street corner visible
+  in the photo, not the centre of the city or the landmark's own pin. More than
+  100 metres out scores zero.
+- Use driving side, number plates, script and language on signage, road markings,
+  kerb paint, utility poles, vegetation and architecture as evidence.
+
+After the answer line, list the visual clues you used and name the landmark, so I can check you.`;
+
 function renderStreetView() {
   const panel = el("div", "sv");
 
+  const steps = el("ol", "steps");
+  const step = (html) => {
+    const li = document.createElement("li");
+    li.innerHTML = html;
+    return li;
+  };
+  steps.append(
+    step("On the GA7 page, <strong>right-click the Street View image → Copy image</strong>. " +
+         "(The bookmarklet also puts its URL on your clipboard.)"),
+    step('Open <a href="https://gemini.google.com" target="_blank" rel="noopener noreferrer">gemini.google.com</a> ' +
+         "or any chat model that accepts images. Paste the image."),
+    step("Paste the prompt below with it. It is written around the two things that actually " +
+         "decide this mark, which is where most answers are lost."),
+    step("Put the answer line into GA7 and press Check <em>before</em> you save."),
+  );
+
+  const promptBox = el("pre", "sv-prompt", GEMINI_PROMPT);
+  const copyPrompt = el("button", "copy", "Copy prompt");
+  copyPrompt.type = "button";
+  copyPrompt.addEventListener("click", async () => {
+    await navigator.clipboard.writeText(GEMINI_PROMPT);
+    copyPrompt.textContent = "Copied";
+    setTimeout(() => (copyPrompt.textContent = "Copy prompt"), 1200);
+  });
+
+  panel.append(steps, promptBox, copyPrompt);
+
+  // Optional: do the same call from here, if you would rather not leave the page.
+  const auto = el("details", "sv-auto");
+  const sum = el("summary", null, "…or run it here with an aipipe token");
+  auto.append(sum);
+
   const imageField = el("input", "sv-input");
   imageField.type = "url";
-  imageField.placeholder = "paste the image URL from the GA7 page";
+  imageField.placeholder = "paste the image URL";
 
   const file = el("input", "sv-file");
   file.type = "file";
@@ -324,16 +373,9 @@ function renderStreetView() {
 
   const go = el("button", "go", "Identify");
   go.type = "button";
-
   const out = el("div", "sv-out");
 
-  panel.append(
-    field("Image URL", imageField),
-    field("…or a file", file),
-    field("Token", token),
-    go,
-    out
-  );
+  auto.append(field("Image URL", imageField), field("…or a file", file), field("Token", token), go, out);
 
   let dataUrl = null;
   file.addEventListener("change", async () => {
@@ -343,9 +385,9 @@ function renderStreetView() {
 
   go.addEventListener("click", async () => {
     out.replaceChildren();
-    const url = imageField.value.trim();
     go.disabled = true;
     try {
+      const url = imageField.value.trim();
       const known = await lookupKnown(url);
       const result = known ?? (await geolocate({ imageUrl: url, imageDataUrl: dataUrl, token: token.value.trim() }));
       token.value = "";
@@ -357,6 +399,7 @@ function renderStreetView() {
     }
   });
 
+  panel.append(auto);
   return panel;
 }
 
