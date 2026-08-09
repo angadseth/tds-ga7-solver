@@ -232,26 +232,47 @@ function saveRow(quiz, user, panel) {
 
   const button = document.createElement("button");
   button.className = "ga7s-save";
-  button.textContent = "Save and show my score";
+  button.textContent = "Check all, save, and show my score";
 
   const out = document.createElement("div");
   out.className = "ga7s-score";
 
   button.addEventListener("click", async () => {
     button.disabled = true;
-    out.textContent = "Saving…";
     const before = await latest(quiz, user.email);
+    const started = Date.now();
+
+    // The exam's own Save runs Check on every question first, so this is one
+    // click but several minutes of server work. Report progress rather than
+    // looking frozen.
     document.querySelector(".save-action")?.click();
 
-    // The page saves asynchronously; wait for a newer submission to appear.
-    const deadline = Date.now() + 90000;
+    const tick = setInterval(() => {
+      const secs = Math.round((Date.now() - started) / 1000);
+      out.innerHTML =
+        `<span class="ga7s-label">Checking all ten questions, then saving — ${secs}s. ` +
+        `The exam verifies each live endpoint, so this takes a few minutes.</span>`;
+    }, 1000);
+
+    const deadline = Date.now() + 480000; // the full run can be slow
     let current = before;
     while (Date.now() < deadline) {
-      await new Promise((r) => setTimeout(r, 3000));
-      out.textContent = "Saved — waiting for the server to score it…";
+      await new Promise((r) => setTimeout(r, 5000));
+
+      // The page writes the outcome here; an error means no point waiting.
+      const banner = document.getElementById("submission-status");
+      if (banner && /alert-danger/.test(banner.innerHTML)) {
+        clearInterval(tick);
+        out.innerHTML = `<span class="ga7s-bad">${escapeHtml(banner.textContent.trim().slice(0, 200))}</span>`;
+        button.disabled = false;
+        return;
+      }
+
       current = await latest(quiz, user.email);
       if (current && (!before || current.time !== before.time)) break;
     }
+
+    clearInterval(tick);
     renderScore(out, current, before);
     button.disabled = false;
   });
@@ -274,27 +295,34 @@ async function latest(quiz, email) {
 
 function renderScore(out, current, before) {
   if (!current) {
-    out.innerHTML = `<span class="ga7s-warn">Saved, but the score has not come back yet. Reopen the solver in a minute.</span>`;
+    out.innerHTML =
+      `<span class="ga7s-warn">Saved, but the score has not come back yet. ` +
+      `Reopen the solver in a minute to see it.</span>`;
     return;
   }
   const stale = before && current.time === before.time;
   const scores = current.scores || {};
+  const full = current.total === current.max;
+
   const lines = Object.entries(TITLES)
     .map(([id, label]) => {
-      const value = scores[id];
-      const got = typeof value === "number" ? value : null;
+      const got = typeof scores[id] === "number" ? scores[id] : null;
       const kind = got === null ? "warn" : got > 0 ? "ok" : "bad";
       return (
         `<div class="ga7s-row"><span class="ga7s-label">${escapeHtml(label)}</span>` +
-        `<span class="ga7s-${kind}">${got === null ? "not scored" : got}</span></div>`
+        `<span class="ga7s-${kind}">${got === null ? "—" : got}</span></div>`
       );
     })
     .join("");
 
   out.innerHTML =
-    `<div class="ga7s-total">${current.total ?? "?"} / ${current.max ?? "?"}` +
-    (stale ? ` <span class="ga7s-warn">(previous save — the new one may still be scoring)</span>` : "") +
-    `</div>${lines}`;
+    `<div class="ga7s-total" style="color:${full ? "#6fc9ad" : "#d6a54e"}">` +
+    `${current.total ?? "?"} / ${current.max ?? "?"}</div>` +
+    (stale
+      ? `<div class="ga7s-warn">This is your previous save — the new one may still be scoring. ` +
+        `Press the button again in a minute.</div>`
+      : "") +
+    lines;
 }
 
 /* ------------------------------------------------------------------ */
