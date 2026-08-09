@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GA7 Solver — derived, not guessed</title>
+<meta name="description" content="Derives the offline TDS GA7 answers from your email by running the exam's own question generator, and shows the evidence behind each one.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#129517;</text></svg>">
+<link rel="stylesheet" href="./assets/style.css">
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div>
+      <h1 class="wordmark">GA7 <em>Solver</em></h1>
+      <p class="tagline">Derives your answers by running the exam's own question generator — locally, in this tab, with the working shown.</p>
+    </div>
+    <form id="run">
+      <input id="email" type="email" placeholder="your.roll@ds.study.iitm.ac.in" autocomplete="email" required>
+      <button class="go" type="submit">Solve</button>
+    </form>
+    <p id="status" data-kind="idle">Enter your IITM email to begin</p>
+  </header>
+
+  <div id="summary"></div>
+  <div id="ledger"></div>
+
+  <section class="block">
+    <h2>Why these answers are exact</h2>
+    <p>
+      Every TDS question is a pure function of your email address. The exam builds each student's
+      variant with a seeded generator — <code>questionId # your-email # version</code> — and that
+      generator ships to the browser as an ordinary JavaScript module. This page loads that module
+      and calls it. Nothing here re-implements a question, so there is nothing to drift out of date
+      and nothing to guess: the values you see are the values the grader was built from.
+    </p>
+    <p>
+      For the search-operator question the answer is a query rather than a value, so it is searched
+      for and then checked with the exam's own matcher — the result is only shown when it returns
+      the target set exactly, with no extras and no misses, inside the token budget.
+    </p>
+  </section>
+
+  <section class="block">
+    <h2>What it cannot do, honestly</h2>
+    <div class="callout">
+      Six of the ten questions are graded by the exam calling <em>your</em> live endpoint with hidden
+      payloads, or by comparing a real-world location. Those twelve marks cannot be derived from an
+      email by this tool or any other — they need a service that actually behaves correctly. Anything
+      claiming otherwise is guessing.
+    </div>
+    <p>
+      The four derived questions are worth four marks and are exact. The rest of this project is the
+      part that matters more: a reference implementation of the five policy gates and a probe harness
+      that scores your deployed service the way the grader will, before you save.
+    </p>
+  </section>
+
+  <section class="block">
+    <h2>Run it on the exam page</h2>
+    <p>
+      The same engine can fill the answer fields for you. Drag this to your bookmarks bar, open the
+      GA7 page while signed in, and click it — it reads your email from the page, derives the four
+      offline answers and types them into the right fields. It never sends your email anywhere.
+    </p>
+    <pre id="bookmarklet-src">loading…</pre>
+    <p>
+      Nothing is transmitted: no email, no token, no answers. There is no server in this project at
+      all — the page you are reading is a static file.
+    </p>
+  </section>
+
+  <footer>
+    <p>
+      Independent study tool. Not affiliated with IIT Madras or the TDS course team. Built for the
+      graded assignments, whose instructions permit any help you can find; not for the proctored
+      exams, where it must not be used.
+    </p>
+  </footer>
+
+</div>
+
+<script type="module" src="./assets/app.js"></script>
+<script>
+  // Show the bookmarklet with an absolute loader URL for wherever this is hosted.
+  const loader = new URL("./bookmarklet/solver.js", location.href).href;
+  document.getElementById("bookmarklet-src").textContent =
+    `javascript:(function(){var s=document.createElement('script');s.type='module';s.src='${loader}?'+Date.now();document.body.appendChild(s);})()`;
+</script>
+</body>
+</html>

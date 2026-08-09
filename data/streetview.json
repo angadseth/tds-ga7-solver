@@ -1,0 +1,10 @@
+{
+  "_comment": "Street View images are chosen server-side, so answers cannot be derived. This maps an image filename to an answer that the exam accepted. Place is the CITY, not the landmark.",
+  "62ca6ce70f77ae26.avif": {
+    "place": "Hiroshima",
+    "country": "Japan",
+    "lat": 34.3905,
+    "lon": 132.4519,
+    "landmark": "Hiroshima Peace Memorial Museum forecourt"
+  }
+}

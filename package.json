@@ -1,0 +1,17 @@
+{
+  "name": "tds-ga7-solver",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "verify": "node tools/verify.mjs",
+    "vendor": "node tools/vendor.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "seedrandom": "^3.0.5"
+  },
+  "private": true
+}
