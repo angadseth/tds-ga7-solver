@@ -404,3 +404,11 @@ footer {
 .sv-auto summary { cursor: pointer; color: var(--ink-3); font-size: 0.8rem; margin-bottom: 0.6rem; }
 .sv-auto summary:hover { color: var(--ink); }
 .sv-auto > *:not(summary) { margin-bottom: 0.5rem; }
+
+/* ---------- workflow evidence ---------- */
+
+.wf { margin-top: 0.9rem; max-width: 46rem; }
+.wf .probe-controls { margin-top: 0; }
+.wf-out:empty { display: none; }
+.wf-out { border: 1px solid var(--rule); margin-top: 0.6rem; }
+.wf-out .sv-error, .wf-out .note { padding: 0.6rem 0.8rem; margin: 0; }

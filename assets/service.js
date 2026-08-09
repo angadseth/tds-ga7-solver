@@ -25,10 +25,74 @@ export function baseUrlFor(email) {
 
 /** Q1 wants both fields as one JSON object. */
 export function releaseGateAnswer(email, workflowUrl) {
-  return JSON.stringify({
-    serviceUrl: baseUrlFor(email),
-    workflowUrl: workflowUrl || "https://github.com/OWNER/REPO/actions/workflows/release-gate.yml",
-  });
+  return JSON.stringify({ serviceUrl: baseUrlFor(email), workflowUrl: workflowUrl || "" });
+}
+
+/**
+ * Check a workflow URL the way the backend will: it reads the public file and
+ * the branch status badge, so the file has to exist, be named exactly right,
+ * and contain a step named with this student's email.
+ *
+ * @returns {Promise<{ok: boolean, problems: string[], checks: [string, boolean][]}>}
+ */
+export async function checkWorkflow(url, email) {
+  const problems = [];
+  const checks = [];
+  const m = String(url || "").trim().match(
+    /^https?:\/\/github\.com\/([^/]+)\/([^/]+)\/actions\/workflows\/([^/?#]+)$/
+  );
+  if (!m) {
+    return {
+      ok: false,
+      problems: [
+        "That is not a workflow page URL. It must look like " +
+          "https://github.com/OWNER/REPO/actions/workflows/FILE.yml — the page that lists runs, " +
+          "not the URL of a single run.",
+      ],
+      checks,
+    };
+  }
+  const [, owner, repo, file] = m;
+
+  let body;
+  for (const branch of ["main", "master"]) {
+    const raw = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/.github/workflows/${file}`;
+    try {
+      const res = await fetch(raw);
+      if (res.ok) {
+        body = await res.text();
+        break;
+      }
+    } catch {
+      /* try the next branch */
+    }
+  }
+
+  if (body === undefined) {
+    problems.push(
+      `Could not read .github/workflows/${file} in ${owner}/${repo}. ` +
+        "The repository has to be public and the file has to be on the default branch."
+    );
+    return { ok: false, problems, checks };
+  }
+
+  // The backend matches these strings exactly, so quoting and spacing are the
+  // usual reason a correct-looking workflow still fails.
+  const named = /^\s*name:\s*['"]?TDS GA7 Release Gate['"]?\s*$/m.test(body);
+  checks.push(["named exactly “TDS GA7 Release Gate”", named]);
+  if (!named) problems.push("The workflow's own name: must be exactly “TDS GA7 Release Gate”.");
+
+  // A plain substring beats building a regex out of an address, and the
+  // required step name is a fixed string anyway.
+  const step = body.includes(`TDS identity: ${email}`);
+  checks.push([`a step named “TDS identity: ${email}”`, step]);
+  if (!step) problems.push("A step must be named exactly “TDS identity: " + email + "”.");
+
+  const onPush = /on:[\s\S]{0,240}?push:/m.test(body);
+  checks.push(["runs on a push to the default branch", onPush]);
+  if (!onPush) problems.push("The workflow has to run on a push to main.");
+
+  return { ok: problems.length === 0, problems, checks };
 }
 
 /** Ask the service what it will enforce for this student, so it can be checked. */

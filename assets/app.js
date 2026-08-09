@@ -1,6 +1,6 @@
 import { loadEngine, solveOffline } from "./engine.js";
 import { geolocate, formatAnswer, lookupKnown } from "./streetview.js";
-import { baseUrlFor, releaseGateAnswer, fetchAssigned, runProbes } from "./service.js";
+import { baseUrlFor, releaseGateAnswer, fetchAssigned, runProbes, checkWorkflow } from "./service.js";
 
 const QUIZ = "2026-05-ga7";
 
@@ -108,9 +108,61 @@ function renderSummary(marks, ms) {
  * The five gate questions: a working endpoint, and a way to check it.
  * ---------------------------------------------------------------- */
 
+const WORKFLOW_KEY = "ga7-solver-workflow";
+const workflowUrl = () => localStorage.getItem(WORKFLOW_KEY) || "";
+
 /** What to paste for a given service question. */
 function serviceAnswer(q, email) {
-  return q.n === 1 ? releaseGateAnswer(email) : baseUrlFor(email);
+  return q.n === 1 ? releaseGateAnswer(email, workflowUrl()) : baseUrlFor(email);
+}
+
+/**
+ * Question one also wants a workflow URL, and it has to be the student's own
+ * repository — the workflow carries a step named with their email, so it is the
+ * one part of these five that cannot be shared.
+ */
+function renderWorkflowField(email, onChange) {
+  const wrap = el("div", "wf");
+  const input = el("input", "sv-input");
+  input.type = "url";
+  input.placeholder = "https://github.com/YOU/REPO/actions/workflows/release-gate.yml";
+  input.value = workflowUrl();
+
+  const go = el("button", "go", "Check");
+  go.type = "button";
+  const out = el("div", "wf-out");
+
+  const row = el("div", "probe-controls");
+  row.append(input, go);
+  wrap.append(row, out);
+
+  const save = () => {
+    localStorage.setItem(WORKFLOW_KEY, input.value.trim());
+    onChange();
+  };
+  input.addEventListener("change", save);
+
+  go.addEventListener("click", async () => {
+    save();
+    out.replaceChildren();
+    go.disabled = true;
+    try {
+      const result = await checkWorkflow(input.value.trim(), email);
+      for (const [label, pass] of result.checks) {
+        const line = el("div", `probe probe--${pass ? "ok" : "bad"}`);
+        line.append(el("span", "probe-mark", pass ? "pass" : "FAIL"), el("span", "probe-name", label));
+        out.append(line);
+      }
+      for (const problem of result.problems) out.append(el("p", "sv-error", problem));
+      if (result.ok) out.append(note("The backend will be able to read this. Both halves of question one are now in place."));
+    } catch (error) {
+      out.append(el("p", "sv-error", error.message));
+    } finally {
+      go.disabled = false;
+    }
+  });
+
+  return wrap;
 }
 
 async function renderVerifier(email) {
@@ -234,11 +286,16 @@ function renderEvidence(q, result, email) {
     if (q.n === 1) {
       body.append(
         note(
-          "This question also wants a workflow URL, which has to be your own repository because the " +
-            "workflow carries a step named with your email. That part is a quarter of the mark; " +
-            "replace OWNER/REPO once you have pushed it."
+          "This question wants a workflow URL as well, and that half has to be your own repository — " +
+            "the workflow carries a step named with your email, so it is the one part of these five " +
+            "that cannot be shared. It is a quarter of the mark. Paste the workflow page URL (the one " +
+            "that lists runs, not a single run) and check it here before saving."
         )
       );
+      body.append(renderWorkflowField(email, () => {
+        const cell = body.parentElement?.querySelector(".row-answer");
+        if (cell) cell.textContent = serviceAnswer(q, email);
+      }));
     }
     return body;
   }
