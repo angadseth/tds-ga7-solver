@@ -415,3 +415,10 @@ footer {
 
 .sv-actions { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; }
 .sv-free { color: var(--accent); font-size: 0.76rem; letter-spacing: 0.04em; text-transform: uppercase; }
+
+.wf > .go { margin-bottom: 0.5rem; }
+.wf-ok { color: var(--accent); }
+.wf-warn { color: var(--pending); }
+.wf-manual { margin-top: 0.4rem; }
+.wf-manual summary { cursor: pointer; color: var(--ink-3); font-size: 0.8rem; }
+.wf-manual summary:hover { color: var(--ink); }

@@ -1,6 +1,14 @@
 import { loadEngine, solveOffline } from "./engine.js";
 import { geolocate, formatAnswer, lookupKnown } from "./streetview.js";
-import { baseUrlFor, releaseGateAnswer, fetchAssigned, runProbes, checkWorkflow } from "./service.js";
+import {
+  baseUrlFor,
+  releaseGateAnswer,
+  fetchAssigned,
+  runProbes,
+  checkWorkflow,
+  createWorkflow,
+  workflowStatus,
+} from "./service.js";
 
 const QUIZ = "2026-05-ga7";
 
@@ -123,29 +131,64 @@ function serviceAnswer(q, email) {
  */
 function renderWorkflowField(email, onChange) {
   const wrap = el("div", "wf");
+
+  const make = el("button", "go", "Create my workflow");
+  make.type = "button";
+  const state = el("p", "note");
+  const out = el("div", "wf-out");
+
   const input = el("input", "sv-input");
   input.type = "url";
   input.placeholder = "https://github.com/YOU/REPO/actions/workflows/release-gate.yml";
   input.value = workflowUrl();
 
-  const go = el("button", "go", "Check");
-  go.type = "button";
-  const out = el("div", "wf-out");
-
-  const row = el("div", "probe-controls");
-  row.append(input, go);
-  wrap.append(row, out);
-
-  const save = () => {
-    localStorage.setItem(WORKFLOW_KEY, input.value.trim());
+  const commit = (url) => {
+    input.value = url;
+    localStorage.setItem(WORKFLOW_KEY, url);
     onChange();
   };
-  input.addEventListener("change", save);
 
-  go.addEventListener("click", async () => {
-    save();
+  make.addEventListener("click", async () => {
+    make.disabled = true;
     out.replaceChildren();
-    go.disabled = true;
+    state.textContent = "Committing your workflow…";
+    try {
+      const result = await createWorkflow(email);
+      commit(result.workflowUrl);
+      state.textContent = result.created
+        ? "Committed. Waiting for the run to go green…"
+        : "Already there. Checking the run…";
+
+      // The badge is what the exam actually reads, so wait for it.
+      const deadline = Date.now() + 120000;
+      let status = result.status;
+      while (status !== "passing" && Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 6000));
+        status = (await workflowStatus(email))?.status ?? status;
+      }
+      state.textContent =
+        status === "passing"
+          ? "Green. Question one is complete — copy the answer above."
+          : `Committed, but the run is still ${status}. Give it a minute and press again.`;
+      state.className = status === "passing" ? "note wf-ok" : "note wf-warn";
+    } catch (error) {
+      state.className = "note wf-warn";
+      state.textContent = error.message;
+    } finally {
+      make.disabled = false;
+    }
+  });
+
+  // Manual route, for anyone who would rather point at their own repository.
+  const manual = el("details", "wf-manual");
+  manual.append(el("summary", null, "…or use a workflow I already have"));
+
+  const check = el("button", "go", "Check");
+  check.type = "button";
+  check.addEventListener("click", async () => {
+    commit(input.value.trim());
+    out.replaceChildren();
+    check.disabled = true;
     try {
       const result = await checkWorkflow(input.value.trim(), email);
       for (const [label, pass] of result.checks) {
@@ -154,14 +197,18 @@ function renderWorkflowField(email, onChange) {
         out.append(line);
       }
       for (const problem of result.problems) out.append(el("p", "sv-error", problem));
-      if (result.ok) out.append(note("The backend will be able to read this. Both halves of question one are now in place."));
     } catch (error) {
       out.append(el("p", "sv-error", error.message));
     } finally {
-      go.disabled = false;
+      check.disabled = false;
     }
   });
 
+  const row = el("div", "probe-controls");
+  row.append(input, check);
+  manual.append(row);
+
+  wrap.append(make, state, manual, out);
   return wrap;
 }
 
@@ -286,10 +333,8 @@ function renderEvidence(q, result, email) {
     if (q.n === 1) {
       body.append(
         note(
-          "This question wants a workflow URL as well, and that half has to be your own repository — " +
-            "the workflow carries a step named with your email, so it is the one part of these five " +
-            "that cannot be shared. It is a quarter of the mark. Paste the workflow page URL (the one " +
-            "that lists runs, not a single run) and check it here before saving."
+          "It also wants a workflow whose step is named with your email — so it cannot be shared, " +
+            "and has to be made for you. One button does that."
         )
       );
       body.append(renderWorkflowField(email, () => {
