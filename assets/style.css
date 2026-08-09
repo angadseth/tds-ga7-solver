@@ -494,3 +494,59 @@ footer {
   .action-code { flex-direction: column; }
   .action-code .go { align-self: flex-start; }
 }
+
+/* ---------- masthead identity ---------- */
+
+.brand { position: relative; padding-left: 0.9rem; }
+
+.brand::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.35rem;
+  bottom: 0.9rem;
+  width: 2px;
+  background: linear-gradient(var(--accent), transparent);
+}
+
+.byline {
+  margin: 0.35rem 0 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.byline span { color: var(--accent); padding: 0 0.15rem; }
+
+/* ---------- colophon ---------- */
+
+.colophon {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem 3rem;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding-bottom: 1.2rem;
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 1.2rem;
+}
+
+.colophon p { margin: 0; }
+
+.colophon-name {
+  font-family: var(--serif);
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.colophon-facts { display: flex; flex-wrap: wrap; gap: 0.3rem 2rem; margin: 0; }
+.colophon-facts > div { display: flex; flex-direction: column; gap: 0.1rem; }
+.colophon-facts dt { font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); }
+.colophon-facts dd { margin: 0; font-size: 0.82rem; color: var(--ink-2); }
+
+.colophon-note { max-width: 64ch; }
+
+footer { max-width: none; }
