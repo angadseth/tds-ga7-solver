@@ -234,50 +234,76 @@ function saveRow(quiz, user, panel) {
   button.className = "ga7s-save";
   button.textContent = "Check all, save, and show my score";
 
+  const stage = document.createElement("div");
+  stage.className = "ga7s-stage";
+
   const out = document.createElement("div");
   out.className = "ga7s-score";
 
   button.addEventListener("click", async () => {
     button.disabled = true;
+    out.replaceChildren();
     const before = await latest(quiz, user.email);
     const started = Date.now();
 
-    // The exam's own Save runs Check on every question first, so this is one
-    // click but several minutes of server work. Report progress rather than
-    // looking frozen.
+    const elapsed = () => {
+      const s = Math.round((Date.now() - started) / 1000);
+      return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, "0")}s`;
+    };
+
+    // Phase one: the exam's own Save checks all ten questions first, and each
+    // check verifies a live endpoint, so this is minutes of real work.
+    let phase = "saving";
+    stage.className = "ga7s-stage ga7s-stage--working";
+    const tick = setInterval(() => {
+      if (phase === "saving") {
+        stage.innerHTML = `<span class="ga7s-spin"></span> Checking all ten questions and saving… <b>${elapsed()}</b>`;
+      } else if (phase === "scoring") {
+        stage.innerHTML = `<span class="ga7s-spin"></span> Saved. Waiting for the score… <b>${elapsed()}</b>`;
+      }
+    }, 500);
+
     document.querySelector(".save-action")?.click();
 
-    const tick = setInterval(() => {
-      const secs = Math.round((Date.now() - started) / 1000);
-      out.innerHTML =
-        `<span class="ga7s-label">Checking all ten questions, then saving — ${secs}s. ` +
-        `The exam verifies each live endpoint, so this takes a few minutes.</span>`;
-    }, 1000);
-
-    const deadline = Date.now() + 480000; // the full run can be slow
+    const banner = () => document.getElementById("submission-status")?.innerHTML || "";
+    const deadline = Date.now() + 480000;
     let current = before;
-    while (Date.now() < deadline) {
-      await new Promise((r) => setTimeout(r, 5000));
+    let failed = null;
 
-      // The page writes the outcome here; an error means no point waiting.
-      const banner = document.getElementById("submission-status");
-      if (banner && /alert-danger/.test(banner.innerHTML)) {
-        clearInterval(tick);
-        out.innerHTML = `<span class="ga7s-bad">${escapeHtml(banner.textContent.trim().slice(0, 200))}</span>`;
-        button.disabled = false;
-        return;
+    while (Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 2500));
+
+      if (/alert-danger/.test(banner())) {
+        failed = document.getElementById("submission-status").textContent.trim();
+        break;
       }
+      // Phase two: the exam confirms the submission before the score lands.
+      if (phase === "saving" && /alert-success/.test(banner())) phase = "scoring";
 
       current = await latest(quiz, user.email);
       if (current && (!before || current.time !== before.time)) break;
     }
 
     clearInterval(tick);
+
+    if (failed) {
+      stage.className = "ga7s-stage ga7s-stage--bad";
+      stage.textContent = failed.slice(0, 200);
+      button.disabled = false;
+      return;
+    }
+
+    const fresh = current && (!before || current.time !== before.time);
+    stage.className = `ga7s-stage ga7s-stage--${fresh ? "ok" : "warn"}`;
+    stage.innerHTML = fresh
+      ? `Successfully saved in ${elapsed()}.`
+      : `Saved, but the score has not appeared yet — press again in a minute.`;
+
     renderScore(out, current, before);
     button.disabled = false;
   });
 
-  wrap.append(button, out);
+  wrap.append(button, stage, out);
   return wrap;
 }
 
@@ -379,7 +405,16 @@ function mountPanel() {
       color:#0d1211;background:#6fc9ad;border:0;border-radius:2px;padding:.5rem}
     #${PANEL_ID} .ga7s-save:disabled{opacity:.55;cursor:progress}
     #${PANEL_ID} .ga7s-score{margin-top:.6rem}
-    #${PANEL_ID} .ga7s-total{font-size:1.3rem;font-weight:700;color:#6fc9ad;margin-bottom:.3rem}
+    #${PANEL_ID} .ga7s-total{font-size:1.6rem;font-weight:700;color:#6fc9ad;margin:.2rem 0 .4rem}
+    #${PANEL_ID} .ga7s-stage{margin-top:.55rem;color:#a3b1ad}
+    #${PANEL_ID} .ga7s-stage:empty{display:none}
+    #${PANEL_ID} .ga7s-stage--ok{color:#6fc9ad;font-weight:700}
+    #${PANEL_ID} .ga7s-stage--warn{color:#d6a54e}
+    #${PANEL_ID} .ga7s-stage--bad{color:#e08a78}
+    #${PANEL_ID} .ga7s-spin{display:inline-block;width:9px;height:9px;margin-right:.35rem;
+      border:2px solid #35443f;border-top-color:#6fc9ad;border-radius:50%;animation:ga7sspin .8s linear infinite}
+    @keyframes ga7sspin{to{transform:rotate(360deg)}}
+    @media (prefers-reduced-motion:reduce){#${PANEL_ID} .ga7s-spin{animation:none}}
     #${PANEL_ID} a{color:#6fc9ad}
   `;
 
