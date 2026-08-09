@@ -254,3 +254,132 @@ export async function* runProbes(baseUrl, v, { signal } = {}) {
     yield { path, name, ok, detail, passed, total: probes.length };
   }
 }
+
+/* ------------------------------------------------------------------ *
+ * Question one's other half.
+ *
+ * The workflow must live in the student's own public repository because it
+ * carries a step named with their email — the one part of these five that
+ * cannot be shared. This generates that file and a link that opens GitHub's
+ * editor with it already filled in, so it is a commit rather than a project.
+ * ------------------------------------------------------------------ */
+
+export const WORKFLOW_FILENAME = ".github/workflows/release-gate.yml";
+
+export function workflowYaml(email) {
+  return `name: TDS GA7 Release Gate
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release-gate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12"]
+    steps:
+      - name: 'TDS identity: ${email}'
+        run: echo "TDS GA7 release gate - ${email}"
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: \${{ matrix.python }}
+
+      - name: Test the release-gate implementation
+        run: python release_gate_test.py
+`;
+}
+
+/** A tiny self-contained test so the workflow has something real to run. */
+export function workflowTest() {
+  return `"""Exercises the release-gate rules the assignment describes."""
+
+
+def decide(payload):
+    v = []
+    w = payload.get("workflow") or {}
+    img = payload.get("image") or {}
+
+    want = {"contents": "read", "packages": "write", "id-token": "none"}
+    if (w.get("permissions") or {}) != want:
+        v.append("EXCESS_PERMISSION")
+    if w.get("trigger") == "pull_request_target":
+        v.append("UNSAFE_PR_TRIGGER")
+    if not (w.get("testsPassed") is True and w.get("matrixComplete") is True
+            and w.get("failFast") is False):
+        v.append("TESTS_INCOMPLETE")
+    for a in w.get("actions") or []:
+        if str(a.get("owner", "")).lower() != "actions":
+            ref = str(a.get("ref", ""))
+            if len(ref) != 40 or any(c not in "0123456789abcdef" for c in ref):
+                v.append("MUTABLE_ACTION")
+                break
+    if img.get("multiStage") is not True:
+        v.append("SINGLE_STAGE_IMAGE")
+    if img.get("runsAsRoot") is True:
+        v.append("ROOT_RUNTIME")
+    if img.get("secretMode") not in ("none", "buildkit"):
+        v.append("SECRET_IN_LAYER")
+    if img.get("criticalVulnerabilities") != 0:
+        v.append("CRITICAL_CVE")
+    if img.get("digestPinned") is not True:
+        v.append("UNPINNED_IMAGE")
+    if payload.get("target") == "production":
+        if not (payload.get("event") == "push" and payload.get("ref") == "refs/heads/main"):
+            v.append("INVALID_PRODUCTION_REF")
+        if w.get("environmentApproval") is not True:
+            v.append("APPROVAL_REQUIRED")
+
+    return {"decision": "promote" if not v else "block", "violations": v}
+
+
+CLEAN = {
+    "target": "preview", "event": "pull_request", "ref": "refs/heads/f",
+    "workflow": {"trigger": "pull_request",
+                 "permissions": {"contents": "read", "packages": "write", "id-token": "none"},
+                 "testsPassed": True, "matrixComplete": True, "failFast": False,
+                 "actions": [{"owner": "actions", "name": "checkout", "ref": "v4"}]},
+    "image": {"multiStage": True, "runsAsRoot": False, "secretMode": "none",
+              "criticalVulnerabilities": 0, "digestPinned": True},
+}
+
+assert decide(CLEAN) == {"decision": "promote", "violations": []}
+
+dirty = {**CLEAN, "image": {**CLEAN["image"], "runsAsRoot": True}}
+assert "ROOT_RUNTIME" in decide(dirty)["violations"]
+
+upper = {**CLEAN, "workflow": {**CLEAN["workflow"],
+         "actions": [{"owner": "third", "name": "x", "ref": "A" * 40}]}}
+assert "MUTABLE_ACTION" in decide(upper)["violations"]
+
+print("release gate: all checks passed")
+`;
+}
+
+/** Opens GitHub's editor with the file already written. */
+export function prefilledCommitUrl(repoUrl, path, content) {
+  const m = String(repoUrl || "").trim().match(/github\.com\/([^/]+)\/([^/?#]+)/);
+  if (!m) return null;
+  const [, owner, repo] = m;
+  return (
+    `https://github.com/${owner}/${repo.replace(/\.git$/, "")}/new/main` +
+    `?filename=${encodeURIComponent(path)}&value=${encodeURIComponent(content)}`
+  );
+}
+
+export function workflowUrlFor(repoUrl) {
+  const m = String(repoUrl || "").trim().match(/github\.com\/([^/]+)\/([^/?#]+)/);
+  if (!m) return null;
+  return `https://github.com/${m[1]}/${m[2].replace(/\.git$/, "")}/actions/workflows/release-gate.yml`;
+}

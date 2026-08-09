@@ -10,7 +10,15 @@
  * after looking at what got filled in.
  */
 import { loadEngine, solveOffline } from "../assets/engine.js";
-import { baseUrlFor, releaseGateAnswer } from "../assets/service.js";
+import {
+  baseUrlFor,
+  releaseGateAnswer,
+  workflowYaml,
+  workflowTest,
+  prefilledCommitUrl,
+  workflowUrlFor,
+  WORKFLOW_FILENAME,
+} from "../assets/service.js";
 
 const PANEL_ID = "ga7-solver-panel";
 const WORKFLOW_KEY = "ga7-solver-workflow";
@@ -87,10 +95,18 @@ function fill(results, email) {
     else row(label, "—", "bad", "not derived");
   }
   for (const [id, label] of Object.entries(SERVICE)) {
-    const value = id.startsWith("q-cicd")
-      ? releaseGateAnswer(email, localStorage.getItem(WORKFLOW_KEY) || "")
-      : baseUrlFor(email);
-    set(id, value, label, id.startsWith("q-cicd") ? "needs your workflow URL" : "filled");
+    if (id.startsWith("q-cicd")) {
+      const workflow = localStorage.getItem(WORKFLOW_KEY) || "";
+      if (!workflow) {
+        // An empty workflowUrl makes the exam reject the whole answer as an
+        // invalid URL, which is worse than leaving the field alone.
+        row(label, "waiting for your workflow URL — see below", "warn", "not filled");
+        continue;
+      }
+      set(id, releaseGateAnswer(email, workflow), label);
+      continue;
+    }
+    set(id, baseUrlFor(email), label);
   }
   return count;
 }
@@ -106,30 +122,104 @@ function row(label, value, kind, note) {
   panel.querySelector(".ga7s-list").append(el);
 }
 
-/** Q1's other half is the student's own repository, so it has to be typed once. */
+/**
+ * Q1's other half is the student's own repository, because the workflow carries
+ * a step named with their email. This walks them through creating it once.
+ */
 function workflowRow(results, email, panel) {
   const wrap = document.createElement("div");
   wrap.className = "ga7s-block";
-  wrap.innerHTML = `<div class="ga7s-label">Q1 · your workflow page URL</div>`;
+
+  const have = localStorage.getItem(WORKFLOW_KEY) || "";
+  wrap.innerHTML =
+    `<div class="ga7s-label">Q1 · your workflow page URL` +
+    (have ? "" : ` <span class="ga7s-warn">— required, Q1 stays empty without it</span>`) +
+    `</div>`;
 
   const input = document.createElement("input");
   input.className = "ga7s-input";
   input.placeholder = "https://github.com/YOU/REPO/actions/workflows/release-gate.yml";
-  input.value = localStorage.getItem(WORKFLOW_KEY) || "";
+  input.value = have;
 
   const apply = () => {
-    localStorage.setItem(WORKFLOW_KEY, input.value.trim());
+    const url = input.value.trim();
+    localStorage.setItem(WORKFLOW_KEY, url);
     const field = document.querySelector('[name="q-cicd-container-release-gate-server"]');
-    if (field) {
-      field.value = releaseGateAnswer(email, input.value.trim());
+    if (field && url) {
+      field.value = releaseGateAnswer(email, url);
       field.dispatchEvent(new Event("input", { bubbles: true }));
+      field.dispatchEvent(new Event("change", { bubbles: true }));
+      status.textContent = "Question one filled.";
+      status.className = "ga7s-ok";
     }
   };
   input.addEventListener("change", apply);
   input.addEventListener("blur", apply);
 
-  wrap.append(input);
+  const status = document.createElement("div");
+  status.className = "ga7s-warn";
+
+  // Setup path, for anyone who has not made the repository yet.
+  const setup = document.createElement("details");
+  setup.className = "ga7s-setup";
+  setup.innerHTML = `<summary>I do not have that repository yet</summary>`;
+
+  const steps = document.createElement("ol");
+  steps.innerHTML =
+    `<li>Create a <strong>public</strong> repository: ` +
+    `<a href="https://github.com/new" target="_blank" rel="noopener">github.com/new</a> — any name, tick “Add a README”.</li>` +
+    `<li>Paste its URL here:</li>`;
+
+  const repo = document.createElement("input");
+  repo.className = "ga7s-input";
+  repo.placeholder = "https://github.com/YOU/YOUR-REPO";
+
+  const links = document.createElement("div");
+  links.className = "ga7s-links";
+
+  repo.addEventListener("input", () => {
+    links.replaceChildren();
+    const commit = prefilledCommitUrl(repo.value, WORKFLOW_FILENAME, workflowYaml(email));
+    const testCommit = prefilledCommitUrl(repo.value, "release_gate_test.py", workflowTest());
+    const wf = workflowUrlFor(repo.value);
+    if (!commit) return;
+
+    links.append(
+      link("3. Commit the test file", testCommit),
+      link("4. Commit the workflow", commit),
+      note("5. Wait for the green tick on the Actions tab, then:")
+    );
+    const use = document.createElement("button");
+    use.className = "ga7s-copy";
+    use.textContent = "6. Use this workflow URL";
+    use.addEventListener("click", () => {
+      input.value = wf;
+      apply();
+      setup.open = false;
+    });
+    links.append(use);
+  });
+
+  setup.append(steps, repo, links);
+  wrap.append(input, status, setup);
   return wrap;
+}
+
+function link(text, href) {
+  const a = document.createElement("a");
+  a.href = href;
+  a.target = "_blank";
+  a.rel = "noopener";
+  a.textContent = text;
+  a.className = "ga7s-link";
+  return a;
+}
+
+function note(text) {
+  const p = document.createElement("div");
+  p.className = "ga7s-label";
+  p.textContent = text;
+  return p;
 }
 
 /** Street View cannot be derived — hand over the image rather than the answer. */
@@ -287,6 +377,14 @@ function mountPanel() {
     #${PANEL_ID} .ga7s-save:disabled{opacity:.55;cursor:progress}
     #${PANEL_ID} .ga7s-score{margin-top:.6rem}
     #${PANEL_ID} .ga7s-total{font-size:1.3rem;font-weight:700;color:#6fc9ad;margin-bottom:.3rem}
+    #${PANEL_ID} .ga7s-setup{margin-top:.6rem}
+    #${PANEL_ID} .ga7s-setup summary{cursor:pointer;color:#7a8884}
+    #${PANEL_ID} .ga7s-setup summary:hover{color:#e4eae7}
+    #${PANEL_ID} .ga7s-setup ol{margin:.5rem 0;padding-left:1.2rem;color:#a3b1ad}
+    #${PANEL_ID} .ga7s-setup li{margin:.25rem 0}
+    #${PANEL_ID} .ga7s-links{display:flex;flex-direction:column;align-items:flex-start;gap:.35rem;margin-top:.5rem}
+    #${PANEL_ID} .ga7s-link{color:#6fc9ad}
+    #${PANEL_ID} a{color:#6fc9ad}
   `;
 
   const root = document.createElement("div");
