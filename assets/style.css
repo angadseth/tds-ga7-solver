@@ -444,3 +444,53 @@ footer {
 .live-value--none { color: var(--ink-3); font-size: 1rem; }
 .live-detail { color: var(--ink-2); font-size: 0.8rem; flex: 1 1 14rem; }
 .live .copy { margin-left: auto; }
+
+/* ---------- the thing that actually saves ---------- */
+
+.action {
+  margin: 2rem 0;
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+  padding: 1.4rem 1.5rem;
+}
+
+.action h2 { margin: 0 0 0.4rem; }
+.action-head p { color: var(--ink-2); max-width: 62ch; margin: 0; font-size: 0.88rem; }
+
+.action-steps {
+  margin: 1rem 0;
+  padding-left: 1.3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  max-width: 62ch;
+}
+
+.action-steps li { color: var(--ink); font-size: 0.88rem; }
+
+.action-code {
+  display: flex;
+  gap: 0.6rem;
+  align-items: stretch;
+  margin-top: 0.9rem;
+}
+
+.action-code code {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  white-space: nowrap;
+  background: var(--surface);
+  border: 1px solid var(--rule-2);
+  border-radius: 2px;
+  padding: 0.55rem 0.7rem;
+  font-size: 0.74rem;
+  color: var(--ink-2);
+}
+
+.action-code .go { flex: 0 0 auto; }
+
+@media (max-width: 40rem) {
+  .action-code { flex-direction: column; }
+  .action-code .go { align-self: flex-start; }
+}
