@@ -4,7 +4,8 @@
   "description": "",
   "scripts": {
     "verify": "node tools/verify.mjs",
-    "vendor": "node tools/vendor.mjs"
+    "vendor": "node tools/vendor.mjs",
+    "sweep": "node tools/sweep.mjs 200"
   },
   "keywords": [],
   "author": "",
