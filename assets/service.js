@@ -23,6 +23,27 @@ export function baseUrlFor(email) {
   return `${SERVICE_HOST}/s/${encodeEmail(email)}`;
 }
 
+/**
+ * Ask the service to create this student's workflow evidence.
+ *
+ * The workflow has to carry a step named with their email, which is why it
+ * cannot simply be shared — so the service commits one file per student into a
+ * public repository and hands back its page URL. That commit is itself the push
+ * to main that turns the badge green.
+ */
+export async function createWorkflow(email) {
+  const res = await fetch(`${baseUrlFor(email)}/workflow`, { method: "POST" });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || `The service answered HTTP ${res.status}.`);
+  return body;
+}
+
+/** Has that workflow gone green yet? Reads the same badge the exam reads. */
+export async function workflowStatus(email) {
+  const res = await fetch(`${baseUrlFor(email)}/workflow`);
+  return res.ok ? res.json() : null;
+}
+
 /** Q1 wants both fields as one JSON object. */
 export function releaseGateAnswer(email, workflowUrl) {
   return JSON.stringify({ serviceUrl: baseUrlFor(email), workflowUrl: workflowUrl || "" });

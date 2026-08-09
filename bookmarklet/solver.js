@@ -10,15 +10,7 @@
  * after looking at what got filled in.
  */
 import { loadEngine, solveOffline } from "../assets/engine.js";
-import {
-  baseUrlFor,
-  releaseGateAnswer,
-  workflowYaml,
-  workflowTest,
-  prefilledCommitUrl,
-  workflowUrlFor,
-  WORKFLOW_FILENAME,
-} from "../assets/service.js";
+import { baseUrlFor, releaseGateAnswer, createWorkflow, workflowStatus } from "../assets/service.js";
 
 const PANEL_ID = "ga7-solver-panel";
 const WORKFLOW_KEY = "ga7-solver-workflow";
@@ -159,67 +151,50 @@ function workflowRow(results, email, panel) {
   const status = document.createElement("div");
   status.className = "ga7s-warn";
 
-  // Setup path, for anyone who has not made the repository yet.
-  const setup = document.createElement("details");
-  setup.className = "ga7s-setup";
-  setup.innerHTML = `<summary>I do not have that repository yet</summary>`;
+  // One button: the service commits this student's workflow and returns its URL.
+  const make = document.createElement("button");
+  make.className = "ga7s-save";
+  make.textContent = "Create my workflow automatically";
+  make.style.marginTop = ".5rem";
 
-  const steps = document.createElement("ol");
-  steps.innerHTML =
-    `<li>Create a <strong>public</strong> repository: ` +
-    `<a href="https://github.com/new" target="_blank" rel="noopener">github.com/new</a> — any name, tick “Add a README”.</li>` +
-    `<li>Paste its URL here:</li>`;
-
-  const repo = document.createElement("input");
-  repo.className = "ga7s-input";
-  repo.placeholder = "https://github.com/YOU/YOUR-REPO";
-
-  const links = document.createElement("div");
-  links.className = "ga7s-links";
-
-  repo.addEventListener("input", () => {
-    links.replaceChildren();
-    const commit = prefilledCommitUrl(repo.value, WORKFLOW_FILENAME, workflowYaml(email));
-    const testCommit = prefilledCommitUrl(repo.value, "release_gate_test.py", workflowTest());
-    const wf = workflowUrlFor(repo.value);
-    if (!commit) return;
-
-    links.append(
-      link("3. Commit the test file", testCommit),
-      link("4. Commit the workflow", commit),
-      note("5. Wait for the green tick on the Actions tab, then:")
-    );
-    const use = document.createElement("button");
-    use.className = "ga7s-copy";
-    use.textContent = "6. Use this workflow URL";
-    use.addEventListener("click", () => {
-      input.value = wf;
+  make.addEventListener("click", async () => {
+    make.disabled = true;
+    status.className = "ga7s-label";
+    status.textContent = "Committing your workflow…";
+    try {
+      const result = await createWorkflow(email);
+      input.value = result.workflowUrl;
       apply();
-      setup.open = false;
-    });
-    links.append(use);
+      status.className = "ga7s-label";
+      status.textContent = result.created
+        ? "Committed. Waiting for the run to go green…"
+        : "Already there. Checking the run…";
+
+      // The badge is what the exam reads, so wait for it rather than guessing.
+      const deadline = Date.now() + 120000;
+      let state = result.status;
+      while (state !== "passing" && Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 6000));
+        state = (await workflowStatus(email))?.status ?? state;
+      }
+      if (state === "passing") {
+        status.className = "ga7s-ok";
+        status.textContent = "Workflow is green. Question one is complete.";
+      } else {
+        status.className = "ga7s-warn";
+        status.textContent =
+          `Committed, but the run is still ${state}. Save anyway and check again in a minute.`;
+      }
+    } catch (error) {
+      status.className = "ga7s-bad";
+      status.textContent = error.message;
+    } finally {
+      make.disabled = false;
+    }
   });
 
-  setup.append(steps, repo, links);
-  wrap.append(input, status, setup);
+  wrap.append(input, make, status);
   return wrap;
-}
-
-function link(text, href) {
-  const a = document.createElement("a");
-  a.href = href;
-  a.target = "_blank";
-  a.rel = "noopener";
-  a.textContent = text;
-  a.className = "ga7s-link";
-  return a;
-}
-
-function note(text) {
-  const p = document.createElement("div");
-  p.className = "ga7s-label";
-  p.textContent = text;
-  return p;
 }
 
 /** Street View cannot be derived — hand over the image rather than the answer. */
@@ -377,13 +352,6 @@ function mountPanel() {
     #${PANEL_ID} .ga7s-save:disabled{opacity:.55;cursor:progress}
     #${PANEL_ID} .ga7s-score{margin-top:.6rem}
     #${PANEL_ID} .ga7s-total{font-size:1.3rem;font-weight:700;color:#6fc9ad;margin-bottom:.3rem}
-    #${PANEL_ID} .ga7s-setup{margin-top:.6rem}
-    #${PANEL_ID} .ga7s-setup summary{cursor:pointer;color:#7a8884}
-    #${PANEL_ID} .ga7s-setup summary:hover{color:#e4eae7}
-    #${PANEL_ID} .ga7s-setup ol{margin:.5rem 0;padding-left:1.2rem;color:#a3b1ad}
-    #${PANEL_ID} .ga7s-setup li{margin:.25rem 0}
-    #${PANEL_ID} .ga7s-links{display:flex;flex-direction:column;align-items:flex-start;gap:.35rem;margin-top:.5rem}
-    #${PANEL_ID} .ga7s-link{color:#6fc9ad}
     #${PANEL_ID} a{color:#6fc9ad}
   `;
 
