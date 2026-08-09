@@ -346,3 +346,40 @@ footer {
 .sv-answer { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; margin-bottom: 0.7rem; }
 .sv-answer code { color: var(--accent); font-size: 0.92rem; }
 .sv-error { color: var(--fail); margin: 0; font-size: 0.85rem; }
+
+/* ---------- probe harness ---------- */
+
+.probe-controls { display: flex; gap: 0.5rem; margin: 1.2rem 0 0.8rem; max-width: 46rem; }
+.probe-controls .sv-input { flex: 1; }
+
+.probe-bar { min-height: 1.4rem; }
+.probe-count { font-size: 0.8rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-3); }
+.probe-count--ok { color: var(--accent); }
+.probe-count--bad { color: var(--fail); }
+
+.probe-out { border: 1px solid var(--rule); margin-top: 0.6rem; }
+.probe-out:empty { display: none; }
+
+.probe {
+  display: grid;
+  grid-template-columns: 3rem minmax(0, 1fr) 10rem;
+  gap: 0.7rem;
+  align-items: baseline;
+  padding: 0.32rem 0.8rem;
+  border-bottom: 1px solid var(--rule);
+  background: var(--surface);
+  font-size: 0.8rem;
+}
+
+.probe:last-child { border-bottom: 0; }
+.probe-mark { font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; }
+.probe--ok .probe-mark { color: var(--accent); }
+.probe--bad .probe-mark { color: var(--fail); }
+.probe--bad { background: var(--pending-soft); }
+.probe-path { color: var(--ink-3); text-align: right; }
+.probe-detail { grid-column: 2 / -1; color: var(--ink-2); font-size: 0.75rem; overflow-wrap: anywhere; }
+
+@media (max-width: 46rem) {
+  .probe { grid-template-columns: 3rem 1fr; }
+  .probe-path { grid-column: 2; text-align: left; }
+}

@@ -1,5 +1,6 @@
 import { loadEngine, solveOffline } from "./engine.js";
 import { geolocate, formatAnswer, lookupKnown } from "./streetview.js";
+import { baseUrlFor, releaseGateAnswer, fetchAssigned, runProbes } from "./service.js";
 
 const QUIZ = "2026-05-ga7";
 
@@ -76,6 +77,11 @@ async function run(email) {
   setStatus("ok", `${solved} of ${derived.length} derived in ${ms} ms`);
   renderSummary(marks, ms);
   for (const q of CATALOGUE) ledger.append(renderRow(q, results[q.id], email));
+
+  document.getElementById("verifier")?.remove();
+  const verifier = await renderVerifier(email);
+  verifier.id = "verifier";
+  ledger.after(verifier);
 }
 
 function setStatus(kind, text) {
@@ -97,6 +103,78 @@ function renderSummary(marks, ms) {
   }
 }
 
+
+/* ---------------------------------------------------------------- *
+ * The five gate questions: a working endpoint, and a way to check it.
+ * ---------------------------------------------------------------- */
+
+/** What to paste for a given service question. */
+function serviceAnswer(q, email) {
+  return q.n === 1 ? releaseGateAnswer(email) : baseUrlFor(email);
+}
+
+async function renderVerifier(email) {
+  const section = el("section", "block");
+  section.append(el("h2", null, "Verify before you save"));
+  section.append(
+    el(
+      "p",
+      null,
+      "The grader will not tell you why a gate failed, so this runs the same shapes of payload " +
+        "against the endpoint and shows each verdict. Point it at the URL above, or at your own " +
+        "deployment if you would rather host it yourself."
+    )
+  );
+
+  const url = el("input", "sv-input");
+  url.type = "url";
+  url.value = baseUrlFor(email);
+  const go = el("button", "go", "Run probes");
+  go.type = "button";
+
+  const bar = el("div", "probe-bar");
+  const out = el("div", "probe-out");
+
+  const controls = el("div", "probe-controls");
+  controls.append(url, go);
+  section.append(controls, bar, out);
+
+  go.addEventListener("click", async () => {
+    out.replaceChildren();
+    bar.replaceChildren();
+    go.disabled = true;
+    const count = el("span", "probe-count", "starting…");
+    bar.append(count);
+    try {
+      const assigned = await fetchAssigned(email);
+      let last = null;
+      for await (const r of runProbes(url.value.trim(), {
+        ...assigned,
+        allowedHosts: assigned.allowedHosts,
+      })) {
+        last = r;
+        count.textContent = `${r.passed} / ${r.total} passing`;
+        const row = el("div", `probe probe--${r.ok ? "ok" : "bad"}`);
+        row.append(el("span", "probe-mark", r.ok ? "pass" : "FAIL"));
+        row.append(el("span", "probe-name", r.name));
+        row.append(el("span", "probe-path", r.path));
+        if (!r.ok) row.append(el("code", "probe-detail", r.detail.slice(0, 200)));
+        out.append(row);
+      }
+      if (last) {
+        count.textContent = `${last.passed} / ${last.total} passing`;
+        count.className = `probe-count probe-count--${last.passed === last.total ? "ok" : "bad"}`;
+      }
+    } catch (error) {
+      out.append(el("p", "sv-error", error.message));
+    } finally {
+      go.disabled = false;
+    }
+  });
+
+  return section;
+}
+
 /* ---------------------------------------------------------------- */
 
 function renderRow(q, result, email) {
@@ -112,8 +190,8 @@ function renderRow(q, result, email) {
     answerCell.classList.add("is-answer");
     answerCell.textContent = result.answer;
   } else if (q.mode === "service") {
-    answerCell.classList.add("is-pending");
-    answerCell.textContent = "your deployed URL";
+    answerCell.classList.add("is-answer");
+    answerCell.textContent = serviceAnswer(q, email);
   } else if (q.mode === "lookup") {
     answerCell.classList.add("is-pending");
     answerCell.textContent = "image lookup";
@@ -123,13 +201,14 @@ function renderRow(q, result, email) {
   }
   head.append(answerCell);
 
-  if (q.mode === "derived" && result?.ok) {
+  if (q.mode === "derived" ? result?.ok : q.mode === "service") {
+    const value = q.mode === "service" ? serviceAnswer(q, email) : result.answer;
     const copy = el("button", "copy", "Copy");
     copy.type = "button";
     copy.addEventListener("click", async (e) => {
       e.preventDefault();
       e.stopPropagation();
-      await navigator.clipboard.writeText(result.answer);
+      await navigator.clipboard.writeText(value);
       copy.textContent = "Copied";
       setTimeout(() => (copy.textContent = "Copy"), 1200);
     });
@@ -146,10 +225,21 @@ function renderEvidence(q, result, email) {
   if (q.mode === "service") {
     body.append(
       note(
-        "The grader calls your endpoint directly with hidden payloads, so there is no answer to derive — " +
-          "only a service that behaves correctly. Deploy the reference implementation and paste its base URL."
+        "The grader calls this endpoint directly with hidden payloads, so there is nothing to derive — " +
+          "only a service that behaves correctly. The URL above is one, and it answers for you " +
+          "specifically: your identity travels in the path, so it enforces your assigned values and " +
+          "would give a different verdict for anyone else."
       )
     );
+    if (q.n === 1) {
+      body.append(
+        note(
+          "This question also wants a workflow URL, which has to be your own repository because the " +
+            "workflow carries a step named with your email. That part is a quarter of the mark; " +
+            "replace OWNER/REPO once you have pushed it."
+        )
+      );
+    }
     return body;
   }
   if (q.mode === "lookup") {
