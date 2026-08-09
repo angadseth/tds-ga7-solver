@@ -81,12 +81,42 @@ async function main() {
   if (missing.length) parts.push(`${missing.length} field(s) not on this page`);
   say(parts.join(" · "), filled === 4 ? "good" : "warn");
 
+  showStreetViewImage(panel);
+
   const foot = document.createElement("p");
   foot.className = "ga7s-foot";
   foot.textContent =
-    "The other six questions are graded against your own live service or a real location — " +
-    "they cannot be filled from here. Press Save yourself once you have checked these.";
+    "The five policy gates are graded against your own live service, so they cannot be filled " +
+    "from here. Press Save yourself once you have checked these.";
   panel.body.append(foot);
+}
+
+/**
+ * Street View cannot be derived, but the image is right here on the page — so
+ * hand over its URL rather than making anyone hunt through devtools for it.
+ */
+function showStreetViewImage(panel) {
+  const scope = document.querySelector('[data-question="q-streetview-geolocation-server"]');
+  const src = scope?.querySelector("img")?.src;
+  if (!src) return;
+
+  const row = document.createElement("div");
+  row.className = "ga7s-row";
+  row.innerHTML =
+    `<span class="ga7s-label">Q6 · Street View image</span>` +
+    `<span class="ga7s-warn">not derivable</span>` +
+    `<code class="ga7s-answer">${escapeHtml(src)}</code>`;
+
+  const copy = document.createElement("button");
+  copy.className = "ga7s-copy";
+  copy.textContent = "Copy image URL";
+  copy.addEventListener("click", async () => {
+    await navigator.clipboard.writeText(src);
+    copy.textContent = "Copied";
+    setTimeout(() => (copy.textContent = "Copy image URL"), 1200);
+  });
+  row.append(copy);
+  panel.list.append(row);
 }
 
 /* ------------------------------------------------------------------ */
@@ -133,6 +163,10 @@ function mountPanel() {
     #${PANEL_ID} .ga7s-warn{color:#d6a54e}
     #${PANEL_ID} .ga7s-bad{color:#e08a78}
     #${PANEL_ID} .ga7s-foot{margin:.8rem 0 0;color:#7a8884}
+    #${PANEL_ID} .ga7s-copy{grid-column:1/-1;justify-self:start;margin-top:.3rem;cursor:pointer;
+      font:inherit;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:#a3b1ad;
+      background:none;border:1px solid #35443f;border-radius:2px;padding:.15rem .5rem}
+    #${PANEL_ID} .ga7s-copy:hover{color:#e4eae7;border-color:#7a8884}
   `;
 
   const root = document.createElement("div");

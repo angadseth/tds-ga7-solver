@@ -1,4 +1,5 @@
 import { loadEngine, solveOffline } from "./engine.js";
+import { geolocate, formatAnswer, lookupKnown } from "./streetview.js";
 
 const QUIZ = "2026-05-ga7";
 
@@ -154,10 +155,12 @@ function renderEvidence(q, result, email) {
   if (q.mode === "lookup") {
     body.append(
       note(
-        "The image is chosen server-side, so the location cannot be computed from your email. " +
-          "Identify the landmark, then answer with the city — not the landmark's own name."
+        "The image is chosen server-side, so this is the one question that cannot be computed from " +
+          "your email. Paste the image and a vision model will identify it — but answer with the " +
+          "city, never the landmark's own name, which is what the exam actually grades."
       )
     );
+    body.append(renderStreetView());
     return body;
   }
   if (!result) return body;
@@ -206,6 +209,108 @@ function renderEvidence(q, result, email) {
   }
   return body;
 }
+
+/* ---------------------------------------------------------------- *
+ * Street View — the only place a model is involved, and the only
+ * place a token is asked for. It is used once, from this tab, against
+ * aipipe.org, and never stored.
+ * ---------------------------------------------------------------- */
+
+function renderStreetView() {
+  const panel = el("div", "sv");
+
+  const imageField = el("input", "sv-input");
+  imageField.type = "url";
+  imageField.placeholder = "paste the image URL from the GA7 page";
+
+  const file = el("input", "sv-file");
+  file.type = "file";
+  file.accept = "image/*";
+
+  const token = el("input", "sv-input");
+  token.type = "password";
+  token.placeholder = "aipipe.org token (used once, never stored)";
+  token.autocomplete = "off";
+
+  const go = el("button", "go", "Identify");
+  go.type = "button";
+
+  const out = el("div", "sv-out");
+
+  panel.append(
+    field("Image URL", imageField),
+    field("…or a file", file),
+    field("Token", token),
+    go,
+    out
+  );
+
+  let dataUrl = null;
+  file.addEventListener("change", async () => {
+    const f = file.files?.[0];
+    dataUrl = f ? await readAsDataUrl(f) : null;
+  });
+
+  go.addEventListener("click", async () => {
+    out.replaceChildren();
+    const url = imageField.value.trim();
+    go.disabled = true;
+    try {
+      const known = await lookupKnown(url);
+      const result = known ?? (await geolocate({ imageUrl: url, imageDataUrl: dataUrl, token: token.value.trim() }));
+      token.value = "";
+      renderGuess(out, result);
+    } catch (error) {
+      out.append(el("p", "sv-error", error.message));
+    } finally {
+      go.disabled = false;
+    }
+  });
+
+  return panel;
+}
+
+function renderGuess(out, r) {
+  const answer = formatAnswer(r);
+  if (answer) {
+    const line = el("div", "sv-answer");
+    line.append(el("code", null, answer));
+    const copy = el("button", "copy", "Copy");
+    copy.type = "button";
+    copy.addEventListener("click", async () => {
+      await navigator.clipboard.writeText(answer);
+      copy.textContent = "Copied";
+      setTimeout(() => (copy.textContent = "Copy"), 1200);
+    });
+    line.append(copy);
+    out.append(line);
+  }
+  out.append(kv("Confidence", r.confidence));
+  if (r.landmark) out.append(kv("Recognised", r.landmark));
+  if (r.cues.length) out.append(list("Evidence", r.cues));
+  if (r.confidence !== "confirmed") {
+    out.append(
+      note(
+        "Check the pin before you save. The place and country are usually right for a recognisable " +
+          "landmark; the coordinates are the part that drifts, and the tolerance is only 100 metres."
+      )
+    );
+  }
+}
+
+function field(label, control) {
+  const wrap = el("label", "sv-field");
+  wrap.append(el("span", null, label), control);
+  return wrap;
+}
+
+const readAsDataUrl = (f) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error("Could not read that file."));
+    reader.readAsDataURL(f);
+  });
 
 const note = (text) => el("p", "note", text);
 

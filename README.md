@@ -33,10 +33,16 @@ confirmed with the exam's own matcher and only reported on an exact hit inside t
 
 ## What it deliberately does not do
 
-Six of the ten questions — the five policy gates and the Street View geolocation — are graded by the
-exam calling **your** live endpoint with hidden payloads, or by comparing a real location. Those
-twelve marks cannot be derived from an email by this tool or any other. Anything that claims
+The five policy gates are graded by the exam calling **your** live endpoint with hidden payloads.
+Those ten marks cannot be derived from an email by this tool or any other. Anything that claims
 otherwise is guessing.
+
+Street View is assisted rather than derived: the image is chosen server-side, so a vision model is
+asked to name the landmark. The prompt is built around the two things that actually decide the mark
+— the exam wants the **city**, not the landmark's name, and the pin has a 100 m tolerance. Confirmed
+answers are cached in `data/streetview.json` by image filename, and a cache hit always beats the
+model. This is the only feature that uses a token; it goes straight from your browser to
+aipipe.org and is never stored.
 
 ## Privacy
 

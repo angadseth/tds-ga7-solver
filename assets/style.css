@@ -308,3 +308,41 @@ footer {
   .kv { grid-template-columns: 1fr; gap: 0.1rem; }
   form#run { margin-left: 0; }
 }
+
+/* ---------- street view panel ---------- */
+
+.sv {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.55rem;
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--rule);
+  background: var(--surface);
+  max-width: 46rem;
+}
+
+.sv-field { display: grid; grid-template-columns: 7rem minmax(0, 1fr); gap: 0.6rem; align-items: center; width: 100%; }
+.sv-field > span { color: var(--ink-3); font-size: 0.78rem; }
+
+.sv-input {
+  font: inherit;
+  color: var(--ink);
+  background: var(--ground);
+  border: 1px solid var(--rule-2);
+  border-radius: 2px;
+  padding: 0.4rem 0.6rem;
+  min-width: 0;
+}
+
+.sv-input:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
+.sv-file { font: inherit; font-size: 0.8rem; color: var(--ink-2); }
+.sv .go { align-self: flex-start; }
+.sv .go:disabled { opacity: 0.5; cursor: progress; }
+
+.sv-out { width: 100%; }
+.sv-out:empty { display: none; }
+.sv-answer { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; margin-bottom: 0.7rem; }
+.sv-answer code { color: var(--accent); font-size: 0.92rem; }
+.sv-error { color: var(--fail); margin: 0; font-size: 0.85rem; }

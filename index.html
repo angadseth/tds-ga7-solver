@@ -46,15 +46,18 @@
   <section class="block">
     <h2>What it cannot do, honestly</h2>
     <div class="callout">
-      Six of the ten questions are graded by the exam calling <em>your</em> live endpoint with hidden
-      payloads, or by comparing a real-world location. Those twelve marks cannot be derived from an
-      email by this tool or any other — they need a service that actually behaves correctly. Anything
-      claiming otherwise is guessing.
+      The five policy gates are graded by the exam calling <em>your</em> live endpoint with hidden
+      payloads. Those ten marks cannot be derived from an email by this tool or any other — they need
+      a service that actually behaves correctly. Anything claiming otherwise is guessing.
     </div>
     <p>
-      The four derived questions are worth four marks and are exact. The rest of this project is the
-      part that matters more: a reference implementation of the five policy gates and a probe harness
-      that scores your deployed service the way the grader will, before you save.
+      Street View sits in between. Its image is chosen server-side, so nothing can be derived — but a
+      vision model can name the landmark, and the question is graded on the <em>city</em>, not the
+      landmark. Open question six for that; it is the one place a token is used, it goes straight from
+      your browser to aipipe.org, and it is never stored.
+    </p>
+    <p>
+      So: four marks exact, two marks assisted, ten marks that need your own running service.
     </p>
   </section>
 
