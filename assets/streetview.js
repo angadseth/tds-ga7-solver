@@ -15,7 +15,7 @@
  */
 
 const ENDPOINT = "https://aipipe.org/openrouter/v1/chat/completions";
-const MODEL = "openai/gpt-4.1-mini";
+const MODEL = "google/gemini-2.0-flash-001"; // cheapest vision model on the proxy
 
 const SYSTEM = `You are a precise OSINT geolocation analyst.
 
@@ -73,6 +73,13 @@ export async function geolocate({ imageUrl, imageDataUrl, token, model = MODEL }
 
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
+    if (res.status === 402 || /insufficient credits/i.test(detail)) {
+      throw new Error(
+        "Your aipipe credits are used up, so this route is closed. Use the free steps above " +
+          "instead: copy the image, open gemini.google.com, paste it with the prompt. That costs " +
+          "nothing and answers the same question."
+      );
+    }
     throw new Error(
       res.status === 401
         ? "That token was rejected. Tokens expire when your aipipe session ends — get a fresh one."

@@ -412,3 +412,6 @@ footer {
 .wf-out:empty { display: none; }
 .wf-out { border: 1px solid var(--rule); margin-top: 0.6rem; }
 .wf-out .sv-error, .wf-out .note { padding: 0.6rem 0.8rem; margin: 0; }
+
+.sv-actions { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; }
+.sv-free { color: var(--accent); font-size: 0.76rem; letter-spacing: 0.04em; text-transform: uppercase; }

@@ -400,15 +400,19 @@ function renderStreetView() {
   );
 
   const promptBox = el("pre", "sv-prompt", GEMINI_PROMPT);
-  const copyPrompt = el("button", "copy", "Copy prompt");
+
+  const actions = el("div", "sv-actions");
+  const copyPrompt = el("button", "go", "Copy prompt & open Gemini");
   copyPrompt.type = "button";
   copyPrompt.addEventListener("click", async () => {
     await navigator.clipboard.writeText(GEMINI_PROMPT);
-    copyPrompt.textContent = "Copied";
-    setTimeout(() => (copyPrompt.textContent = "Copy prompt"), 1200);
+    copyPrompt.textContent = "Copied — paste the image, then this";
+    window.open("https://gemini.google.com/app", "_blank", "noopener");
+    setTimeout(() => (copyPrompt.textContent = "Copy prompt & open Gemini"), 2500);
   });
+  actions.append(copyPrompt, el("span", "sv-free", "free — no token, no credits"));
 
-  panel.append(steps, promptBox, copyPrompt);
+  panel.append(steps, promptBox, actions);
 
   // Optional: do the same call from here, if you would rather not leave the page.
   const auto = el("details", "sv-auto");
