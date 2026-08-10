@@ -1,5 +1,5 @@
 import { loadEngine, solveOffline } from "./engine.js";
-import { geolocate, formatAnswer, lookupKnown } from "./streetview.js";
+import { formatAnswer, lookupKnown } from "./streetview.js";
 import {
   baseUrlFor,
   releaseGateAnswer,
@@ -396,8 +396,9 @@ function renderEvidence(q, result, email) {
     body.append(
       note(
         "The image is chosen server-side, so this is the one question that cannot be computed from " +
-          "your email. Paste the image and a vision model will identify it — but answer with the " +
-          "city, never the landmark's own name, which is what the exam actually grades."
+          "your email. The pool of images is small though, so look yours up before you try to " +
+          "identify it — and either way answer with the city, never the landmark's own name, " +
+          "which is what the exam actually grades."
       )
     );
     body.append(renderStreetView());
@@ -451,10 +452,18 @@ function renderEvidence(q, result, email) {
 }
 
 /* ---------------------------------------------------------------- *
- * Street View — the only place a model is involved, and the only
- * place a token is asked for. It is used once, from this tab, against
- * aipipe.org, and never stored.
+ * Street View — the one question nothing can derive. Everything here
+ * is free: a prompt for whichever chat model you already have open,
+ * a reference map for narrowing the country down by eye, and the
+ * answers this exam has already accepted.
  * ---------------------------------------------------------------- */
+
+/**
+ * Built by a classmate: a gallery of the Street View images this assignment
+ * hands out, each with an answer already confirmed against the exam. Finding
+ * your image there beats identifying it, so it goes first.
+ */
+const GEO_GALLERY = "https://hypemonk.github.io/Geo-locations/";
 
 const GEMINI_PROMPT = `You are an OSINT geolocation analyst. Identify where this Street View photo was taken.
 
@@ -483,7 +492,11 @@ function renderStreetView() {
     return li;
   };
   steps.append(
-    step("On the GA7 page, <strong>right-click the Street View image → Copy image</strong>. " +
+    step(`<strong>Look for your image first.</strong> A classmate keeps a ` +
+         `<a href="${GEO_GALLERY}" target="_blank" rel="noopener noreferrer">gallery of these ` +
+         "Street View images</a> with an answer already confirmed beside each one. If yours is " +
+         "there, copy the line and you are done — no identifying required."),
+    step("If it is not, on the GA7 page <strong>right-click the Street View image → Copy image</strong>. " +
          "(The bookmarklet also puts its URL on your clipboard.)"),
     step('Open <a href="https://gemini.google.com" target="_blank" rel="noopener noreferrer">gemini.google.com</a> ' +
          "or any chat model that accepts images. Paste the image."),
@@ -503,49 +516,42 @@ function renderStreetView() {
     window.open("https://gemini.google.com/app", "_blank", "noopener");
     setTimeout(() => (copyPrompt.textContent = "Copy prompt & open Gemini"), 2500);
   });
-  actions.append(copyPrompt, el("span", "sv-free", "free — no token, no credits"));
+  const gallery = el("a", "sv-ref", "Answer gallery →");
+  gallery.href = GEO_GALLERY;
+  gallery.target = "_blank";
+  gallery.rel = "noopener noreferrer";
+  actions.append(copyPrompt, gallery, el("span", "sv-free", "free — no token, no credits"));
 
   panel.append(steps, promptBox, actions);
 
-  // Optional: do the same call from here, if you would rather not leave the page.
+  // Some images have been answered before. A confirmed answer beats any guess,
+  // so check the image URL against them first — this needs nothing but the URL.
   const auto = el("details", "sv-auto");
-  const sum = el("summary", null, "…or run it here with an aipipe token");
-  auto.append(sum);
+  auto.append(el("summary", null, "…or check whether this image is already confirmed"));
 
   const imageField = el("input", "sv-input");
   imageField.type = "url";
-  imageField.placeholder = "paste the image URL";
+  imageField.placeholder = "paste the image URL from the exam page";
 
-  const file = el("input", "sv-file");
-  file.type = "file";
-  file.accept = "image/*";
-
-  const token = el("input", "sv-input");
-  token.type = "password";
-  token.placeholder = "aipipe.org token (used once, never stored)";
-  token.autocomplete = "off";
-
-  const go = el("button", "go", "Identify");
+  const go = el("button", "go", "Look it up");
   go.type = "button";
   const out = el("div", "sv-out");
 
-  auto.append(field("Image URL", imageField), field("…or a file", file), field("Token", token), go, out);
-
-  let dataUrl = null;
-  file.addEventListener("change", async () => {
-    const f = file.files?.[0];
-    dataUrl = f ? await readAsDataUrl(f) : null;
-  });
+  auto.append(field("Image URL", imageField), go, out);
 
   go.addEventListener("click", async () => {
     out.replaceChildren();
     go.disabled = true;
     try {
-      const url = imageField.value.trim();
-      const known = await lookupKnown(url);
-      const result = known ?? (await geolocate({ imageUrl: url, imageDataUrl: dataUrl, token: token.value.trim() }));
-      token.value = "";
-      renderGuess(out, result);
+      const known = await lookupKnown(imageField.value.trim());
+      if (known) renderGuess(out, known);
+      else
+        out.append(
+          note(
+            "Not in this project's cache. Check the answer gallery linked above — it holds more of " +
+              "them — and if it is not there either, use the prompt with any chat model."
+          )
+        );
     } catch (error) {
       out.append(el("p", "sv-error", error.message));
     } finally {
@@ -590,14 +596,6 @@ function field(label, control) {
   wrap.append(el("span", null, label), control);
   return wrap;
 }
-
-const readAsDataUrl = (f) =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = () => reject(new Error("Could not read that file."));
-    reader.readAsDataURL(f);
-  });
 
 const note = (text) => el("p", "note", text);
 

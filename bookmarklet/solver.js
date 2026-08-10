@@ -218,7 +218,19 @@ function streetViewRow(panel) {
     copy.textContent = "Copied";
     setTimeout(() => (copy.textContent = "Copy image URL"), 1200);
   });
-  el.append(copy);
+
+  // A classmate's gallery of these images with confirmed answers — try it before identifying.
+  const ref = document.createElement("a");
+  ref.className = "ga7s-copy";
+  ref.href = "https://hypemonk.github.io/Geo-locations/";
+  ref.target = "_blank";
+  ref.rel = "noopener noreferrer";
+  ref.textContent = "Answer gallery";
+
+  const actions = document.createElement("div");
+  actions.className = "ga7s-actions";
+  actions.append(copy, ref);
+  el.append(actions);
   panel.list.append(el);
 }
 
@@ -399,8 +411,11 @@ function mountPanel() {
       background:#0d1211;border:1px solid #35443f;border-radius:2px;box-sizing:border-box}
     #${PANEL_ID} .ga7s-copy{grid-column:1/-1;justify-self:start;margin-top:.3rem;cursor:pointer;
       font:inherit;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:#a3b1ad;
-      background:none;border:1px solid #35443f;border-radius:2px;padding:.15rem .5rem}
+      background:none;border:1px solid #35443f;border-radius:2px;padding:.15rem .5rem;
+      display:inline-block;text-decoration:none}
     #${PANEL_ID} .ga7s-copy:hover{color:#e4eae7;border-color:#7a8884}
+    #${PANEL_ID} .ga7s-actions{grid-column:1/-1;display:flex;gap:.4rem;flex-wrap:wrap}
+    #${PANEL_ID} .ga7s-actions .ga7s-copy{grid-column:auto}
     #${PANEL_ID} .ga7s-save{width:100%;cursor:pointer;font:inherit;font-weight:700;letter-spacing:.02em;
       color:#0d1211;background:#6fc9ad;border:0;border-radius:2px;padding:.5rem}
     #${PANEL_ID} .ga7s-save:disabled{opacity:.55;cursor:progress}

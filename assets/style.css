@@ -287,6 +287,33 @@ pre {
 
 a { color: var(--accent); }
 
+/* ---------- credits links ---------- */
+
+.links {
+  list-style: none;
+  margin: 1.2rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+  max-width: 46rem;
+}
+@media (min-width: 54rem) { .links { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+
+.links a {
+  display: block;
+  padding: 0.8rem 1rem;
+  background: var(--surface);
+  text-decoration: none;
+  color: inherit;
+  height: 100%;
+}
+.links a:hover { background: var(--surface-2); }
+
+.links-what { display: block; color: var(--ink); font-size: 0.87rem; font-weight: 600; }
+.links-who { display: block; margin-top: 0.15rem; color: var(--ink-3); font-size: 0.76rem; }
+
 footer {
   margin-top: 4rem;
   padding-top: 1.5rem;
@@ -337,7 +364,8 @@ footer {
 }
 
 .sv-input:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
-.sv-file { font: inherit; font-size: 0.8rem; color: var(--ink-2); }
+.sv-ref { font-size: 0.8rem; color: var(--ink-2); text-decoration: none; border-bottom: 1px solid var(--rule-2); }
+.sv-ref:hover { color: var(--ink); border-bottom-color: currentColor; }
 .sv .go { align-self: flex-start; }
 .sv .go:disabled { opacity: 0.5; cursor: progress; }
 
